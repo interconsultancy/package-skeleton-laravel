@@ -11,9 +11,7 @@
     "authors": [
         {
             "name": ":author_name",
-            "email": "author@domain.com",
-            "role": "Developer"
-        }
+            "email": "author@domain.com"        }
     ],
     "require": {
         "php": "^8.4",
