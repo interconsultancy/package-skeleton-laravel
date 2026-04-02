@@ -22,7 +22,7 @@ jobs:
           coverage: none
 
       - name: Install Dependencies
-        run: composer install --no-progress --no-suggest --prefer-dist
+        run: composer install --no-progress --prefer-dist
 
       # 1. Run Rector in Dry-run mode (geeft error als er refactors nodig zijn)
       - name: Run Rector (Dry Run)
