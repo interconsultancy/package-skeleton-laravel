@@ -1,0 +1,60 @@
+#Hoe dit werkt:
+
+#Rector & Pint:
+#  De tools draaien niet meer in "dry-run", maar passen de bestanden daadwerkelijk aan in de tijdelijke GitHub-omgeving.
+
+#Git Auto Commit:
+#  Deze actie herkent of er bestanden zijn gewijzigd. Zo ja, dan maakt hij een nieuwe commit aan met de melding:
+#    chore: auto-fix code quality.
+
+#Permissions:
+#  Zorg ervoor dat je GitHub-instellingen tostaan dat Actions mogen schrijven naar de repo (ga naar Settings > Actions > General > Workflow permissions en selecteer Read and write permissions).
+
+#Belangrijk om te weten:
+#Merge-conflicten:
+#  Omdat GitHub code pusht naar je branch, moet je op je eigen computer even een git pull doen voordat je verder werkt aan diezelfde branch.
+
+name: Auto Fix Code Quality (Rector & Pint)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  auto-fix-code:
+    runs-on: ubuntu-latest
+    # Voorkom dat de action in een oneindige lus terechtkomt
+    if: "!contains(github.event.head_commit.message, 'chore: auto-fix code quality')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Nodig om te kunnen pushen naar de branch
+          ref: ${{ github.head_ref }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, ctype, iconv, mysql
+
+      - name: Install Dependencies
+        run: composer install --no-progress --no-suggest --prefer-dist
+
+      # 1. Voer Rector uit en pas bestanden aan
+      - name: Run Rector
+        run: ./vendor/bin/rector process
+
+      # 2. Voer Pint uit en zet alles in PSR-stijl
+      - name: Run Pint
+        run: ./vendor/bin/pint
+
+      # 3. Commit de wijzigingen terug naar de repository
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-fix code quality (Rector & Pint)"
+          skip_fetch: true

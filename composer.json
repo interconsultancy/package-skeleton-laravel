@@ -7,6 +7,10 @@
         ":package_slug"
     ],
     "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "support": {
+        "issues": "https://github.com/:vendor_slug/:package_slug/issues",
+        "source": "https://github.com/:vendor_slug/:package_slug"
+    },
     "license": "MIT",
     "authors": [
         {
@@ -19,6 +23,7 @@
         "illuminate/contracts": "^11.0||^12.0"
     },
     "require-dev": {
+        "brainmaestro/composer-git-hooks": "^3.0",
         "laravel/pint": "^1.14",
         "nunomaduro/collision": "^8.8",
         "larastan/larastan": "^3.0",
@@ -45,19 +50,56 @@
         }
     },
     "scripts": {
-        "post-autoload-dump": "@composer run prepare",
+        "analyse": "php -d xdebug.mode=off vendor/bin/phpstan analyse --memory-limit=-1 || true",
         "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "analyse": "php -d xdebug.mode=off vendor/bin/phpstan analyse --memory-limit=2G",
-        "format": "vendor/bin/pint --parallel",
-        "test:format": "@format --test",
-        "test": "php -d xdebug.mode=coverage vendor/bin/pest",
-        "test:coverage": "@test --coverage",
-        "refactor": "rector",
-        "test:refactor": "@refactor --dry-run"
+        "pint": "pint --parallel $(git diff --name-only --diff-filter=ACM | grep '.php$')",
+        "pint-dry": "pint --parallel --test $(git diff --name-only --diff-filter=ACM | grep '.php$') || true",
+        "rector": "rector process $(git diff --name-only --diff-filter=ACM | grep '.php$') || true",
+        "rector-dry": "rector process --dry-run $(git diff --name-only --diff-filter=ACM | grep '.php$') || true",
+        "refactor": [
+            "@rector",
+            "@pint",
+            "@analyse"
+        ],
+        "refactor-dry": [
+            "@rector-dry",
+            "@pint-dry",
+            "@analyse"
+        ],
+        "test": "pest",
+        "test:coverage": "php -d xdebug.mode=coverage vendor/bin/pest --coverage",
+        "ci:check": [
+            "Composer\\Config::disableProcessTimeout",
+            "@test"
+        ],
+        "post-autoload-dump": [
+            "@composer run prepare",
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php vendor/bin/testbench package:discover --ansi",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
+            "cghooks update"
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi",
+            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
+            "@php artisan migrate --graceful --ansi"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "pre-package-uninstall": [
+            "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
+        ],
+        "cghooks": "vendor/bin/cghooks",
+        "post-install-cmd": "cghooks add"
     },
     "config": {
         "sort-packages": true,
         "allow-plugins": {
+            "composer/package-versions-deprecated": true,
             "pestphp/pest-plugin": true,
             "phpstan/extension-installer": true
         }
@@ -70,6 +112,14 @@
             "aliases": {
                 "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
             }
+        },
+        "hooks": {
+            "pre-commit": [
+                "echo 'Opschonen met Rector en Pint...'",
+                "./vendor/bin/rector process $(git diff --cached --name-only --diff-filter=ACM | grep '.php$')",
+                "./vendor/bin/pint $(git diff --cached --name-only --diff-filter=ACM | grep '.php$')",
+                "git add $(git diff --cached --name-only --diff-filter=ACM | grep '.php$')"
+            ]
         }
     },
     "minimum-stability": "dev",
