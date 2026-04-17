@@ -1,10 +1,23 @@
 includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
     - phpstan-baseline.neon
 
 parameters:
     level: 5
     paths:
-        - src
+        - app
         - config
         - database
     tmpDir: build/phpstan
+    checkOctaneCompatibility: true
+    checkModelProperties: true
+    # Verlaag het aantal bestanden in de parser-cache (standaard 256)
+    cache:
+        nodesByStringCountMax: 128
+
+    # Verlaag de PHPDoc cache (standaard 2048)
+    # Dit helpt bij projecten met veel complexe annotaties
+        resolvedPhpDocBlockCacheCountMax: 1024
+    excludePaths:
+        - vendor
